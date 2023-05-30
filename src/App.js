@@ -1,12 +1,39 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useRef, useEffect, useMemo, useCallback, useReducer } from "react";
 import "./App.css";
 import DiaryEditor from "./DiaryEditor";
 import DiaryList from "./DiaryList";
 import { FuncProvider } from "./contexts/a";
 
+const reducer = (state, action) => {
+  switch (action.type) {
+    case "INIT": {
+      return action.data;
+    }
+    case "CREATE": {
+      const created_date = new Date().getTime();
+      const newItem = {
+        ...action.data,
+        created_date,
+      };
+      return [newItem, ...state];
+    }
+    case "REMOVE": {
+      return state.filter((it) => it.id !== action.targetId);
+    }
+    case "EDIT": {
+      return state.map((it) =>
+        action.targetId === it.id ? { ...it, content: action.snewContent } : it
+      );
+    }
+    default:
+      return state;
+  }
+};
+
 //https://jsonplaceholder.typicode.com/comments
 function App() {
-  const [data, setData] = useState([]);
+  //const [data, setData] = useState([]);
+  const [data, dispatch] = useReducer(reducer, []);
 
   const dataId = useRef(0);
 
@@ -24,8 +51,7 @@ function App() {
         id: dataId.current++,
       };
     });
-
-    setData(initData);
+    dispatch({ type: "INIT", data: initData });
   };
 
   useEffect(() => {
@@ -33,27 +59,25 @@ function App() {
   }, []);
 
   const onCreate = useCallback((author, content, emotion) => {
-    const created_date = new Date().getTime();
-    const newItem = {
-      author,
-      content,
-      emotion,
-      created_date,
-      id: dataId.current,
-    };
+    dispatch({
+      type: "CREATE",
+      data: { author, content, emotion, id: dataId.current },
+    });
     dataId.current += 1;
-    setData((prevData) => [newItem, ...prevData]);
   }, []);
 
   const onRemove = useCallback((targetId) => {
-    setData((data) => data.filter((item) => item.id !== targetId));
+    dispatch({
+      type: "REMOVE",
+      targetId,
+    });
   }, []);
 
   const onEdit = useCallback((targetId, newContent) => {
-    setData((data) => {
-      data.map((it) =>
-        targetId === it.id ? { ...it, content: newContent } : it
-      );
+    dispatch({
+      type: "EDIT",
+      targetId,
+      newContent,
     });
   }, []);
 
